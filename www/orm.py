@@ -44,3 +44,8 @@ async def create_pool(loop, **kw):
         return rs
             
 
+def create_args_string(num):
+    L = []
+    for n in range(num):
+        L.append('?')
+    return ', '.join(L)
