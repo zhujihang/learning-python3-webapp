@@ -1,0 +1,183 @@
+{% extends '__base__.html' %}
+
+{% block title %}{{ blog.name }}{% endblock %}
+
+{% block beforehead %}
+
+<script>
+var comment_url = '/api/blogs/{{ blog.id }}/comments';
+var re = '@\\S+\\s';
+var replyDict = [];
+$(function () {
+    var $form = $('#form-comment');
+    $form.submit(function (e) {
+        e.preventDefault();
+        $form.showFormError('');
+        var content = $form.find('textarea').val().trim();
+        if (content==='') {
+            return $form.showFormError('请输入评论内容！');
+        }
+        $form.postJSON(comment_url, { content: content }, function (err, result) {
+            if (err) {
+                return $form.showFormError(err);
+            }
+            refresh();
+        });
+    });
+});
+
+function replyContent (comment, formId) {
+        var $form = $(formId);
+        $form.showFormError('');
+        var content = $form.find('textarea').val().trim();
+        if(content === '') {
+            return $form.showFormError('请输入评论内容！');
+        }
+        var toWho = content.match(re);
+        var postData = { blog_id:comment.blog_id, comment_id:comment.id, content: content };
+        if (toWho != null) {
+            postData['reply_user_id'] = replyDict[toWho[0].trim()];
+        } else {
+            postData['reply_user_id'] = comment.user_id;
+        }
+        console.log(postData);
+        $form.postJSON('/api/comment/reply', postData, function(err, result) {
+            if(err){
+                return $form.showFormError(err);
+            }
+            refresh();
+        });
+    }
+    function onClickReply (replyViewId, otherReply) {
+        var $replyTextView = $(replyViewId).find('textarea');
+        if(!otherReply || typeof(otherReply) === "undefined") {
+            $replyTextView.val('');
+        } else {
+            replyDict['@' + otherReply.user_name] = otherReply.user_id;
+            $replyTextView.val('@' + otherReply.user_name + ' ');
+        }
+    }
+</script>
+
+{% endblock %}
+
+{% block content %}
+
+    <div class="uk-width-medium-3-4">
+        <article class="uk-article">
+            <h2>{{ blog.name }}</h2>
+            <p class="uk-article-meta">发表于{{ blog.created_at|datetime }}</p>
+            <p>{{ blog.html_content|safe }}</p>
+        </article>
+
+        <hr class="uk-article-divider">
+
+    {% if __user__ %}
+        <h3>发表评论</h3>
+
+        <article class="uk-comment">
+            <header class="uk-comment-header">
+                <img class="uk-comment-avatar uk-border-circle" width="50" height="50" src="{{ __user__.image }}">
+                <h4 class="uk-comment-title">{{ __user__.name }}</h4>
+            </header>
+            <div class="uk-comment-body">
+                <form id="form-comment" class="uk-form">
+                    <div class="uk-alert uk-alert-danger uk-hidden"></div>
+                    <div class="uk-form-row">
+                        <textarea rows="6" placeholder="说点什么吧" style="width:100%;resize:none;"></textarea>
+                    </div>
+                    <div class="uk-form-row">
+                        <button type="submit" class="uk-button uk-button-primary"><i class="uk-icon-comment"></i> 发表评论</button>
+                    </div>
+                </form>
+            </div>
+        </article>
+
+        <hr class="uk-article-divider">
+    {% endif %}
+
+        <h3>最新评论</h3>
+
+        <ul class="uk-comment-list">
+            {% for comment in comments %}
+            <li>
+                <article class="uk-comment">
+                    <header class="uk-comment-header">
+                        <img class="uk-comment-avatar uk-border-circle" width="50" height="50" src="{{ comment.user_image }}">
+                        <h4 class="uk-comment-title">{{ comment.user_name }} {% if comment.user_id==blog.user_id %}(作者){% endif %}</h4>
+                        <p class="uk-comment-meta">{{ comment.created_at|datetime }}
+							<button class="uk-button uk-button-mini uk-button-primary"
+                                data-uk-toggle="{target:'#comment-child{{comment.id}}'}" onclick="onClickReply('#form-comment-child{{comment.id}}')"><i class="uk-icon-reply"></i>回复
+							</button>
+						</p>
+                    </header>
+                    <div class="uk-comment-body">
+                        {{ comment.html_content|safe }}
+                    </div>
+                </article>
+				<ul>
+					{% for reply in comment.replies %}
+					<li>
+						<article class="uk-comment">
+							<header style="border-left:3px solid #00A99D; padding-left:10px">
+								<img class="img-rotate uk-comment-avatar uk-border-circle" width="40" height="40"
+									 src="{{ reply.user_image }}">
+								<h4 class="uk-comment-title">{{ reply.user_name }} {% if reply.user_id==blog.user_id
+									%}(作者){%
+									endif %}</h4>
+								<p class="uk-comment-meta">{{ reply.created_at|datetime }}
+									<button class="uk-button uk-button-mini uk-button-link"
+											data-uk-toggle="{target:'#comment-child{{comment.id}}'}" onclick="onClickReply('#form-comment-child{{comment.id}}', {{reply}})">回复
+									</button>
+								</p>
+							</header>
+							<div class="uk-comment-body" style="margin-left:10px">
+								{{ reply.html_content|safe }}
+							</div>
+						</article>
+					</li>
+					{% endfor %}
+					<li>
+						<div id="comment-child{{comment.id}}" class="uk-comment-body uk-hidden">
+							<form id="form-comment-child{{comment.id}}" class="uk-form" onchange="replyContent({{comment}}, '#form-comment-child{{comment.id}}')">
+								<div class="uk-alert uk-alert-danger uk-hidden"></div>
+								<fieldset data-uk-margin>
+									<textarea class="uk-width-1-1"
+											  placeholder="@他/她 或 直接评论"
+											  style="margin: 0px; width: 383px; height: 48px;"></textarea>
+									<div class="uk-button uk-button-mini uk-button-primary" style="margin-bottom:0">评论
+									</div>
+
+								</fieldset>
+							</form>
+						</div>
+
+
+					</li>
+				</ul>
+            </li>
+            {% else %}
+            <p>还没有人评论...</p>
+            {% endfor %}
+        </ul>
+
+    </div>
+
+    <div class="uk-width-medium-1-4">
+        <div class="uk-panel uk-panel-box">
+            <div class="uk-text-center">
+                <img class="uk-border-circle" width="120" height="120" src="{{ blog.user_image }}">
+                <h3>{{ blog.user_name }}</h3>
+            </div>
+        </div>
+        <div class="uk-panel uk-panel-header">
+            <h3 class="uk-panel-title">友情链接</h3>
+            <ul class="uk-list uk-list-line">
+                <li><i class="uk-icon-link"></i> <a href="#">编程</a></li>
+                <li><i class="uk-icon-link"></i> <a href="#">思考</a></li>
+                <li><i class="uk-icon-link"></i> <a href="#">读书</a></li>
+            </ul>
+        </div>
+    </div>
+
+{% endblock %}

@@ -9,11 +9,12 @@ Created on Fri Jun 29 16:50:21 2018
 Models for user, blog, comment.
 '''
 
-__author__ = 'Michael Liao'
+__author__ = 'zhujihang'
+
 
 import time, uuid
 
-from orm import Model, StringField, BooleanField, FloatField, TextField
+from orm import Model, StringField, BooleanField, IntegerField, FloatField, TextField
 
 def next_id():
     return '%015d%s000' % (int(time.time() * 1000), uuid.uuid4().hex)
@@ -28,6 +29,8 @@ class User(Model):
     name = StringField(ddl='varchar(50)')
     image = StringField(ddl='varchar(500)')
     created_at = FloatField(default=time.time)
+    status = IntegerField() # 1：正常账号
+    confirm = StringField(ddl='varchar(50)')
 
 class Blog(Model):
     __table__ = 'blogs'
@@ -47,6 +50,18 @@ class Comment(Model):
     id = StringField(primary_key=True, default=next_id, ddl='varchar(50)')
     blog_id = StringField(ddl='varchar(50)')
     user_id = StringField(ddl='varchar(50)')
+    user_name = StringField(ddl='varchar(50)')
+    user_image = StringField(ddl='varchar(500)')
+    content = TextField()
+    created_at = FloatField(default=time.time)
+    
+class Reply(Model):
+    __table__ = 'reply'
+
+    id = StringField(primary_key=True, default=next_id, ddl='varchar(50)')
+    comment_id = StringField(ddl='varchar(50)')
+    user_id = StringField(ddl='varchar(50)')
+    reply_user_id = StringField(ddl='varchar(50)')
     user_name = StringField(ddl='varchar(50)')
     user_image = StringField(ddl='varchar(500)')
     content = TextField()
